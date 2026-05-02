@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>RecruitAI — Resume Screening Assistant</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0a0c10;
+      --surface:  #111318;
+      --border:   #1e222c;
+      --accent:   #00e5a0;
+      --accent2:  #005eff;
+      --text:     #e8eaf0;
+      --muted:    #6b7280;
+      --danger:   #ff4d6d;
+      --font-head: 'Syne', sans-serif;
+      --font-mono: 'DM Mono', monospace;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-mono);
+      overflow-x: hidden;
+    }
+
+    /* ── NOISE OVERLAY ── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+      background-size: 200px;
+      pointer-events: none;
+    }
+
+    /* ── GLOW BLOBS ── */
+    .blob {
+      position: fixed; border-radius: 50%;
+      filter: blur(120px); opacity: 0.18;
+      pointer-events: none; z-index: 0;
+      animation: drift 12s ease-in-out infinite alternate;
+    }
+    .blob1 { width: 600px; height: 600px; background: var(--accent2); top: -200px; left: -150px; }
+    .blob2 { width: 500px; height: 500px; background: var(--accent);  bottom: -150px; right: -100px; animation-delay: -6s; }
+
+    @keyframes drift { from { transform: translate(0,0) scale(1); } to { transform: translate(30px, 20px) scale(1.05); } }
+
+    /* ── LAYOUT ── */
+    .page {
+      position: relative; z-index: 1;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      min-height: 100vh;
+    }
+
+    /* ── HEADER ── */
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 1.4rem 3rem;
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(12px);
+      background: rgba(10,12,16,0.6);
+      position: sticky; top: 0; z-index: 100;
+    }
+
+    .logo {
+      display: flex; align-items: center; gap: 0.7rem;
+    }
+    .logo-icon {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem;
+      box-shadow: 0 0 20px rgba(0,229,160,0.3);
+    }
+    .logo-text {
+      font-family: var(--font-head);
+      font-size: 1.25rem; font-weight: 800;
+      letter-spacing: -0.03em;
+    }
+    .logo-text span { color: var(--accent); }
+
+    .header-badge {
+      display: flex; align-items: center; gap: 0.5rem;
+      font-size: 0.72rem; color: var(--muted);
+      border: 1px solid var(--border); border-radius: 99px;
+      padding: 0.3rem 0.9rem;
+      letter-spacing: 0.06em; text-transform: uppercase;
+    }
+    .pulse-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--accent);
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:0.4; transform:scale(0.8); } }
+
+    nav { display: flex; gap: 2rem; }
+    nav a {
+      font-size: 0.78rem; color: var(--muted); text-decoration: none;
+      letter-spacing: 0.08em; text-transform: uppercase;
+      transition: color 0.2s;
+    }
+    nav a:hover { color: var(--accent); }
+
+    /* ── HERO ── */
+    .hero {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 3rem;
+      padding: 4rem 3rem 2rem;
+      align-items: start;
+      max-width: 1400px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .hero-left {
+      display: flex; flex-direction: column; gap: 1.5rem;
+      padding-top: 1rem;
+    }
+
+    .eyebrow {
+      font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase;
+      color: var(--accent); font-weight: 500;
+    }
+
+    h1 {
+      font-family: var(--font-head);
+      font-size: clamp(2.4rem, 4vw, 3.8rem);
+      font-weight: 800; line-height: 1.05;
+      letter-spacing: -0.04em;
+    }
+    h1 em {
+      font-style: normal;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+
+    .hero-desc {
+      font-size: 0.9rem; line-height: 1.75;
+      color: var(--muted); max-width: 460px;
+    }
+
+    /* Stats row */
+    .stats {
+      display: flex; gap: 2rem; margin-top: 0.5rem;
+    }
+    .stat-item {
+      display: flex; flex-direction: column; gap: 0.15rem;
+    }
+    .stat-num {
+      font-family: var(--font-head);
+      font-size: 1.8rem; font-weight: 800;
+      color: var(--accent); letter-spacing: -0.04em;
+    }
+    .stat-label {
+      font-size: 0.7rem; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.08em;
+    }
+
+    /* Capabilities */
+    .caps { display: flex; flex-direction: column; gap: 0.7rem; }
+    .cap-item {
+      display: flex; align-items: center; gap: 0.75rem;
+      font-size: 0.8rem; color: var(--muted);
+    }
+    .cap-icon {
+      width: 28px; height: 28px; border-radius: 6px;
+      background: rgba(0,229,160,0.08);
+      border: 1px solid rgba(0,229,160,0.2);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.8rem; flex-shrink: 0;
+    }
+
+    /* ── CHATBOT PANEL ── */
+    .chat-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      overflow: hidden;
+      display: flex; flex-direction: column;
+      height: 680px;
+      box-shadow: 0 40px 100px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04) inset;
+      position: relative;
+    }
+
+    .chat-header {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 1rem 1.4rem;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,0.02);
+    }
+    .chat-avatar {
+      width: 34px; height: 34px; border-radius: 8px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.9rem;
+      box-shadow: 0 0 12px rgba(0,229,160,0.4);
+    }
+    .chat-meta { flex: 1; }
+    .chat-name { font-family: var(--font-head); font-size: 0.9rem; font-weight: 700; }
+    .chat-status { font-size: 0.68rem; color: var(--accent); letter-spacing: 0.06em; }
+
+    .chat-dots { display: flex; gap: 6px; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .dot:nth-child(1) { background: #ff5f57; }
+    .dot:nth-child(2) { background: #febc2e; }
+    .dot:nth-child(3) { background: #28c840; }
+
+    /* Flowise container */
+    .flowise-wrap {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+    flowise-fullchatbot {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* ── FEATURES STRIP ── */
+    .features-strip {
+      max-width: 1400px; margin: 0 auto;
+      padding: 2rem 3rem 4rem;
+      width: 100%;
+    }
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+    }
+    .feature-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.4rem;
+      display: flex; flex-direction: column; gap: 0.6rem;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+    .feature-card:hover {
+      border-color: rgba(0,229,160,0.3);
+      transform: translateY(-2px);
+    }
+    .feature-icon { font-size: 1.4rem; }
+    .feature-title {
+      font-family: var(--font-head);
+      font-size: 0.9rem; font-weight: 700;
+    }
+    .feature-desc { font-size: 0.75rem; color: var(--muted); line-height: 1.6; }
+
+    /* ── FOOTER ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 1.2rem 3rem;
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 0.72rem; color: var(--muted);
+    }
+    footer a { color: var(--muted); text-decoration: none; }
+    footer a:hover { color: var(--accent); }
+
+    /* ── SCROLL ANIMATION ── */
+    .fade-up {
+      opacity: 0; transform: translateY(24px);
+      animation: fadeUp 0.7s ease forwards;
+    }
+    @keyframes fadeUp { to { opacity:1; transform:translateY(0); } }
+    .delay-1 { animation-delay: 0.1s; }
+    .delay-2 { animation-delay: 0.2s; }
+    .delay-3 { animation-delay: 0.3s; }
+    .delay-4 { animation-delay: 0.4s; }
+    .delay-5 { animation-delay: 0.5s; }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 900px) {
+      .hero { grid-template-columns: 1fr; padding: 2rem 1.5rem 1rem; }
+      .chat-panel { height: 520px; }
+      .features-grid { grid-template-columns: 1fr; }
+      header { padding: 1rem 1.5rem; }
+      nav { display: none; }
+      .features-strip { padding: 1.5rem 1.5rem 3rem; }
+      footer { flex-direction: column; gap: 0.5rem; text-align: center; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Background blobs -->
+  <div class="blob blob1"></div>
+  <div class="blob blob2"></div>
+
+  <div class="page">
+
+    <!-- HEADER -->
+    <header>
+      <div class="logo">
+        <div class="logo-icon">🧠</div>
+        <div class="logo-text">Recruit<span>AI</span></div>
+      </div>
+
+      <nav>
+        <a href="#">How it works</a>
+        <a href="#">For Recruiters</a>
+        <a href="#">Docs</a>
+      </nav>
+
+      <div class="header-badge">
+        <div class="pulse-dot"></div>
+        AI Online
+      </div>
+    </header>
+
+    <!-- HERO -->
+    <main>
+      <section class="hero">
+
+        <!-- Left -->
+        <div class="hero-left">
+
+          <div class="eyebrow fade-up delay-1">AI-Powered Talent Intelligence</div>
+
+          <h1 class="fade-up delay-2">
+            Screen Resumes.<br/>
+            <em>10× Faster.</em><br/>
+            Zero Bias.
+          </h1>
+
+          <p class="hero-desc fade-up delay-3">
+            Drop a resume or describe a candidate — our AI assistant evaluates skills, experience,
+            and culture fit in seconds. Ask anything. Get instant, structured insights.
+          </p>
+
+          <div class="stats fade-up delay-4">
+            <div class="stat-item">
+              <span class="stat-num">94%</span>
+              <span class="stat-label">Accuracy rate</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-num">8s</span>
+              <span class="stat-label">Avg. screen time</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-num">3×</span>
+              <span class="stat-label">Better retention</span>
+            </div>
+          </div>
+
+          <div class="caps fade-up delay-5">
+            <div class="cap-item">
+              <div class="cap-icon">📄</div>
+              Paste resume text or describe a candidate profile
+            </div>
+            <div class="cap-item">
+              <div class="cap-icon">🎯</div>
+              Match against job requirements automatically
+            </div>
+            <div class="cap-item">
+              <div class="cap-icon">⚡</div>
+              Get ranked scores, red flags & interview questions
+            </div>
+            <div class="cap-item">
+              <div class="cap-icon">🔒</div>
+              No data stored — fully private screening session
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Right: Chatbot -->
+        <div class="chat-panel fade-up delay-3">
+          <div class="chat-header">
+            <div class="chat-dots">
+              <div class="dot"></div>
+              <div class="dot"></div>
+              <div class="dot"></div>
+            </div>
+            <div style="flex:1; display:flex; align-items:center; gap:0.75rem; padding-left:0.75rem;">
+              <div class="chat-avatar">🤖</div>
+              <div class="chat-meta">
+                <div class="chat-name">RecruitAI Assistant</div>
+                <div class="chat-status">● Ready to screen</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="flowise-wrap">
+            <flowise-fullchatbot></flowise-fullchatbot>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- FEATURES -->
+      <section class="features-strip">
+        <div class="features-grid">
+          <div class="feature-card fade-up delay-1">
+            <div class="feature-icon">🧩</div>
+            <div class="feature-title">Skills Gap Analysis</div>
+            <div class="feature-desc">Instantly identifies which required skills a candidate has, and highlights critical gaps with actionable notes.</div>
+          </div>
+          <div class="feature-card fade-up delay-2">
+            <div class="feature-icon">📊</div>
+            <div class="feature-title">Fit Score Breakdown</div>
+            <div class="feature-desc">Generates a weighted fit score across technical skills, experience level, and soft skills alignment.</div>
+          </div>
+          <div class="feature-card fade-up delay-3">
+            <div class="feature-icon">🗣️</div>
+            <div class="feature-title">Interview Question Generator</div>
+            <div class="feature-desc">Auto-generates tailored interview questions based on resume gaps and the specific role requirements.</div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- FOOTER -->
+    <footer>
+      <span>© 2025 RecruitAI. Built on Flowise + Claude.</span>
+      <span>
+        <a href="#">Privacy</a> &nbsp;·&nbsp;
+        <a href="#">Terms</a> &nbsp;·&nbsp;
+        <a href="#">Contact</a>
+      </span>
+    </footer>
+
+  </div>
+
+  <!-- Flowise Embed -->
+  <script type="module">
+    import Chatbot from "https://cdn.jsdelivr.net/npm/flowise-embed/dist/web.js"
+    Chatbot.initFull({
+      chatflowid: "9fcb7768-43c8-47d4-b9d5-07b45f5e6126",
+      apiHost: "https://cloud.flowiseai.com",
+    })
+  </script>
+
+</body>
+</html>
